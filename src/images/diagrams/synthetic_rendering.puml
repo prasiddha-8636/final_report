@@ -1,0 +1,36 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontSize 11
+skinparam ArrowColor #333333
+skinparam RectangleBorderColor #555555
+skinparam PackageBorderColor #888888
+
+title Synthetic Training Data Generation
+
+package "Input Data" as P1 {
+  (DEM raster) as D
+  (Satellite imagery) as S
+  (Cloud photos) as C
+}
+
+package "3D Rendering (PyRender)" as P2 {
+  (Terrain mesh) as T
+  (Sky backdrop) as K
+  (Camera effects) as E
+}
+
+package "Output" as P3 {
+  (RGB training image) as I
+  (Binary sky mask) as M
+}
+
+D --> T
+S --> T
+C --> K
+T --> I
+K --> E
+E --> I
+T --> M
+
+@enduml

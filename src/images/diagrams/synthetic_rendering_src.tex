@@ -1,0 +1,37 @@
+\documentclass[border=12pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning}
+\begin{document}
+\begin{tikzpicture}[
+    node distance=0.6cm,
+    input/.style={rectangle, draw=black, thick, minimum width=4.5cm, minimum height=0.85cm,
+                  text centered, font=\normalsize, rounded corners=2pt},
+    process/.style={rectangle, draw=black, thick, minimum width=5.2cm, minimum height=1.0cm,
+                    text centered, font=\normalsize\bfseries, fill=gray!8},
+    output/.style={rectangle, draw=black, thick, minimum width=4.5cm, minimum height=0.85cm,
+                   text centered, font=\normalsize, rounded corners=2pt, fill=gray!5},
+    arr/.style={-{Stealth[length=2.5mm]}, thick},
+]
+
+% Inputs
+\node[input] (dem) {DEM (30 m)};
+\node[input, right=1.2cm of dem] (sat) {Satellite texture};
+\node[input, right=1.2cm of sat] (cloud) {Cloud photos};
+
+% Renderer
+\node[process, below=1cm of $(dem)!0.5!(cloud)$] (render) {PyRender (EGL)};
+\node[font=\small, below=0.1cm of render] (weather) {6 weather presets};
+
+% Outputs
+\node[output, below left=1cm and 0.3cm of render] (img) {RGB image};
+\node[output, below right=1cm and 0.3cm of render] (mask) {Sky mask (GT)};
+
+% Arrows
+\draw[arr] (dem) -- (render);
+\draw[arr] (sat) -- (render);
+\draw[arr] (cloud) -- (render);
+\draw[arr] (render) -- (img);
+\draw[arr] (render) -- (mask);
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,116 @@
+\chapter{Implementation Details}
+\label{chap:implementation}
+
+The algorithms, parameters, and tools behind each pipeline stage.
+
+\section{Reference Skyline Database}
+
+HORAYZON reads the Copernicus GLO-30 raster and processes the viewpoint grid in batches of 4{,}096. The full 1.34M-viewpoint database takes about 6--8 hours on a modern workstation.
+
+\subsection{Storage and Streaming}
+
+Each profile is 720 integer values stored in a columnar file format that compresses to about half the raw size.
+
+\begin{table}[H]
+\centering
+\caption{Storage comparison}
+\label{tab:storage_comparison}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Format} & \textbf{Disk size} & \textbf{Notes} \\
+\midrule
+float32 (raw) & 3.86\,GB & Uncompressed \\
+\texttt{uint8} (raw) & 0.96\,GB & 4$\times$ smaller \\
+\texttt{uint8} + Parquet & 486\,MB & Compressed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The matcher reads the database in batches of 4{,}000 rows: decode integers to floats, compute feature bundles, score all queries, update per-query top-K lists, discard the batch. Peak memory stays at about 150\,MB regardless of database size.
+
+\section{Segmentation Training}
+
+\begin{table}[H]
+\centering
+\caption{Training configuration}
+\label{tab:training_config}
+\begin{tabular}{lc}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Architecture & \Gls{unet} + MobileNetV3-large \\
+Pretraining & ImageNet (encoder) \\
+Loss & \Gls{bce} + soft Dice \\
+Optimizer & AdamW \\
+Epochs & 15 \\
+Data & GeoPose3K + synthetic scenes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The model is exported from PyTorch to \Gls{onnx} (opset 11, $256 \times 256$ fixed input) for mobile inference.
+
+\section{Profile Extraction}
+
+Each column of the sky mask maps to an azimuth angle through the camera intrinsics. The first terrain pixel from the top marks the skyline. The result is interpolated onto a uniform grid matching the database. Profiles with standard deviation below 1.5$^\circ$, maximum elevation below 1.0$^\circ$, or boundary coverage below 50\% are rejected.
+
+\section{Matching}
+
+\subsection{Coarse Scan}
+
+\begin{algorithm}[H]
+\caption{Coarse Scan}
+\label{alg:coarse}
+\begin{algorithmic}[1]
+\State \textbf{Input:} query $q$, database $D$, stride $s = 12$, top-$k = 5$
+\For{each viewpoint $v$ at stride $s$ in $D$}
+    \State Compute FFT of $v$'s feature bundle
+    \State For each circular offset $\tau$: compute NCC$(q, v, \tau)$
+    \State Store top-1 offset and score for $v$
+\EndFor
+\State Return top-$k$ viewpoints by score
+\end{algorithmic}
+\end{algorithm}
+
+\noindent The FFT reduces computation from $O(N^2)$ to $O(N \log N)$ where $N = 720$ bins.
+
+\subsection{Local Refinement and FastDTW}
+
+Each top-$k$ candidate expands to 12 neighbours at full resolution. Top 30 advance. FastDTW \cite{salvador2007fastdtw} re-ranks them using dynamic time warping (Manhattan distance, radius 15).
+
+\begin{algorithm}[H]
+\caption{Matching Pipeline}
+\label{alg:matching}
+\begin{algorithmic}[1]
+\State \textbf{Input:} query profile $q$, database $D$
+\State \textbf{Stage 1:} Coarse scan (Algorithm~\ref{alg:coarse}) $\to$ top 5
+\State \textbf{Stage 2:} Expand to neighbours $\to$ top 30
+\State \textbf{Stage 3:} FastDTW re-rank $\to$ top 1
+\State \textbf{Output:} best location, confidence score
+\end{algorithmic}
+\end{algorithm}
+
+\section{Mobile Client}
+
+Kivy app with modules for camera overlay, sensor reading, segmentation, profile extraction, and matching. Plyer handles accelerometer and magnetometer.
+
+\subsection{Multi-Crop Fusion}
+
+Two or three photos at different headings are independently segmented, converted to profiles, and stitched into one wider horizon.
+
+\subsection{Resources}
+
+\begin{table}[H]
+\centering
+\caption{Mobile resource requirements}
+\label{tab:mobile_resources}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Resource} & \textbf{Size} & \textbf{Notes} \\
+\midrule
+ONNX model & 41\,MB & Neural network \\
+DB subset & 10.5\,MB & Compressed profiles \\
+Peak RAM & $\sim$138\,MB & Total \\
+\bottomrule
+\end{tabular}
+\end{table}

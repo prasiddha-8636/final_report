@@ -1,0 +1,43 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontSize 11
+skinparam ArrowColor #333333
+skinparam RectangleBorderColor #555555
+
+title End-to-End Skyline Geolocation Pipeline
+
+rectangle "DATABASE PREPARATION\n(run once)" as P1 #E8F4FD {
+  rectangle "DEM Download" as A1
+  rectangle "Ray-trace 1.34M viewpoints" as A2
+  rectangle "Store uint8 Parquet (486 MB)" as A3
+  A1 -right-> A2
+  A2 -right-> A3
+}
+
+rectangle "MODEL PREPARATION\n(run once)" as P2 #E8F4FD {
+  rectangle "Render synthetic scenes" as B1
+  rectangle "Train U-Net + GeoPose3K" as B2
+  rectangle "Export ONNX (41 MB)" as B3
+  B1 -right-> B2
+  B2 -right-> B3
+}
+
+rectangle "ON-DEVICE PIPELINE" as P3 #FFF3E0 {
+  rectangle "Capture photo" as C1
+  rectangle "Segment sky (U-Net)" as C2
+  rectangle "Extract skyline (720 bins)" as C3
+  rectangle "Match against embedded DB" as C4
+  rectangle "Confidence gate" as C5
+  rectangle "Location estimate" as C6
+  C1 -right-> C2
+  C2 -right-> C3
+  C3 -right-> C4
+  C4 -right-> C5
+  C5 -right-> C6
+}
+
+A3 -down-> C1
+B3 -down-> C2
+
+@enduml

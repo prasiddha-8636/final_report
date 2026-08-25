@@ -1,0 +1,118 @@
+\chapter{Requirements Analysis}
+\label{chap:requirements}
+
+This chapter specifies the functional and non-functional requirements of the system, the hardware used for development and deployment, and the software stack.
+
+\section{Functional Requirements}
+
+\begin{table}[H]
+\centering
+\caption{Functional requirements}
+\label{tab:functional_requirements}
+\begin{tabularx}{0.95\textwidth}{>{\bfseries}l X}
+\toprule
+ID & Requirement \\
+\midrule
+FR-01 & Generate reference skyline profiles from a DEM for a given study area. \\
+FR-02 & Accept one or more overlapping photographs as input. \\
+FR-03 & Segment sky from terrain in each photograph. \\
+FR-04 & Extract a 1-D elevation-angle profile from the segmented mask. \\
+FR-05 & Match the profile against a reference database to estimate camera location. \\
+FR-06 & Return a confidence status: \textit{OK}, \textit{LOW\_CONFIDENCE}, \textit{NO\_MATCH}, or \textit{INVALID\_INPUT}. \\
+FR-07 & Capture device sensor data (pitch, heading) alongside each photo. \\
+FR-08 & Fuse multiple overlapping photographs into a single wide-FOV profile. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Non-Functional Requirements}
+
+\begin{table}[H]
+\centering
+\caption{Non-functional requirements}
+\label{tab:nonfunctional_requirements}
+\begin{tabularx}{0.95\textwidth}{>{\bfseries}l X}
+\toprule
+ID & Requirement \\
+\midrule
+NFR-01 & Work offline, no internet. \\
+NFR-02 & Lightweight segmentation model for mobile. \\
+NFR-03 & Stream the reference database in small batches (peak RAM $<$ 150\,MB). \\
+NFR-04 & Database regenerable for different study areas by swapping the DEM. \\
+NFR-05 & Modular pipeline, each component updatable independently. \\
+NFR-06 & Segmentation, extraction, and matching on-device via ONNX. \\
+NFR-07 & Deterministic output for the same input and database. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Development Hardware}
+
+\begin{table}[H]
+\centering
+\caption{Development hardware}
+\label{tab:dev_hardware}
+\begin{tabular}{ll}
+\toprule
+\textbf{Component} & \textbf{Specification} \\
+\midrule
+Processor & Multi-core x86-64 CPU \\
+Memory & 16\,GB RAM \\
+Storage & 50\,GB free (DEMs, database, training data) \\
+GPU & NVIDIA T4 (Google Colab free tier) \\
+OS & Linux (Ubuntu 22.04) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Target Hardware (Mobile)}
+
+\begin{table}[H]
+\centering
+\caption{Target mobile hardware}
+\label{tab:target_hardware}
+\begin{tabular}{ll}
+\toprule
+\textbf{Component} & \textbf{Minimum} \\
+\midrule
+OS & Android 10 (API 29) \\
+Architecture & arm64-v8a \\
+RAM & 3\,GB \\
+Storage & 100\,MB free (ONNX model + DB subset) \\
+Camera & Rear, autofocus \\
+Sensors & Accelerometer, magnetometer \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Software Stack}
+
+\begin{table}[H]
+\centering
+\caption{Software stack}
+\label{tab:software_stack}
+\begin{tabularx}{0.95\textwidth}{l X}
+\toprule
+\textbf{Tool} & \textbf{Used for} \\
+\midrule
+Python 3.10 & Pipeline code, evaluation scripts \\
+PyTorch & Training the U-Net \\
+segmentation-model-pytorch & U-Net wrapper with pretrained MobileNetV3 \\
+Albumentations & Training augmentation (flips, colour jitter) \\
+OpenCV & Image I/O, CLAHE, Canny, morphological ops \\
+NumPy \& SciPy & Arrays, FFT cross-correlation, Gaussian filtering \\
+Rasterio & Reading GeoTIFF DEMs \\
+HORAYZON & Ray-tracing horizon profiles from DEM mesh \\
+PyRender & Rendering synthetic scenes (EGL, headless) \\
+trimesh & DEM vertices to triangle mesh \\
+FastDTW & Fine alignment between query and reference \\
+pyarrow \& pandas & Parquet database I/O \\
+geopy & Geodesic distances for error metrics \\
+Kivy & Mobile UI framework \\
+Plyer & Accelerometer/magnetometer access \\
+ONNX Runtime & On-device segmentation inference \\
+Git & Version control \\
+\LaTeX & Report \\
+\bottomrule
+\end{tabularx}
+\end{table}
