@@ -34,7 +34,7 @@ For each viewpoint, 720 rays are cast through the DEM mesh. Each ray walks along
 \end{algorithmic}
 \end{algorithm}
 
-\noindent The DEM is sampled at 30\,m intervals. The step size $\Delta d$ controls the trade-off between accuracy and speed; a 30\,m step is sufficient because terrain elevation changes smoothly over short distances. The eye height $h_o$ includes 1.6\,m above the terrain surface to approximate a standing observer.
+\noindent The DEM is sampled at 30\,m intervals. The step size $\Delta d$ controls trade-off between profile accuracy and computation. A 30\,m step was used to balance these two factors. The eye height $h_o$ includes 1.6\,m above the terrain surface to approximate a standing observer.
 
 \subsection{Storage and Streaming}
 
@@ -89,7 +89,7 @@ The raw \Gls{unet} output is refined through a multi-step pipeline. Each step ad
 \begin{algorithmic}[1]
 \State \textbf{Input:} image $I$ (H$\times$W$\times$3), raw probability map $P$
 \State \textbf{Output:} refined binary mask $M$ (sky=0, terrain=255)
-\State $M_{\text{raw}} \leftarrow (P > 0.70)$ \Comment{Threshold}
+\State $M_{\text{raw}} \leftarrow (P < 0.3)$ \Comment{below 0.3 = sky}
 \State $M_{\text{top}} \leftarrow \text{top\_connected}(M_{\text{raw}})$ \Comment{Keep sky touching top 15\%}
 \State $I_{\text{enh}} \leftarrow \text{CLAHE}(I, M_{\text{top}})$ \Comment{Dehaze sky zone only}
 \State $E_{\text{fine}} \leftarrow \text{Canny}(I_{\text{enh}}, \sigma=3, 30/150)$
@@ -229,7 +229,7 @@ Multiple scorers operate at different terrain scales. Their ranked lists are fus
 
 \noindent Because RRF uses ranks rather than raw scores, scorers that produce numbers on different scales (e.g., correlation between 0 and 1, and bandpass energy in arbitrary units) can be combined without normalisation.
 
-\section{Mobile Client (Prototype)}
+\section{Mobile Prototype}
 
 Kivy was chosen because it compiles the same Python codebase to Android (via buildozer) without rewriting in Java or Kotlin. A small prototype was built to verify that the entire pipeline runs on a phone: the ONNX model loads and segments images, the database fits in memory, and the matching math completes within reasonable time. It is not a production application --- just proof that the approach is viable on Android hardware.
 
@@ -238,7 +238,7 @@ Plyer handles accelerometer and magnetometer access. The sensors provide pitch a
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.45\textwidth]{src/images/mobile.png}
-\caption{Mobile prototype: sensor overlay guiding the user to hold the phone level. The green indicator shows the phone is within acceptable tilt.}
+\caption{Mobile prototype: sensor overlay for phone tilt guidance.}
 \label{fig:mobile_prototype}
 \end{figure}
 

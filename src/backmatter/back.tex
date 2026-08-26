@@ -111,7 +111,7 @@ The project was developed entirely using open-source software and publicly avail
 \label{tab:budget}
 \begin{tabular}{p{6cm}cc}
 \toprule
-\textbf{Item} & \textbf{Cost (NPR\footnote{NPR = Nepalese Rupee})} & \textbf{Remarks} \\
+\textbf{Item} & \textbf{Cost (NPR)} & \textbf{Remarks} \\
 \midrule
 Copernicus GLO-30 DEM data & 0 & Open access \\
 PyTorch, ONNX Runtime, Horayzon, PyRender & 0 & Open source \\
@@ -155,7 +155,7 @@ Report printing and binding & $\sim$2000 & Department requirement \\
 \begin{adjustbox}{max totalsize={0.65\textwidth}{0.85\textheight},center}
 \includegraphics{src/images/postprocessing.pdf}
 \end{adjustbox}
-\caption{Post-processing pipeline. Each step addresses a specific failure mode: thresholding gives a rough mask, top-connected filtering removes false sky blobs, CLAHE restores contrast in fog, Canny detects the true boundary, sub-pixel fitting improves precision, and smoothing removes remaining noise.}
+\caption{Post-processing pipeline: threshold, filter, dehaze, detect edges, fit sub-pixel, smooth.}
 \label{fig:postprocessing}
 \end{figure}
 
@@ -166,7 +166,7 @@ Report printing and binding & $\sim$2000 & Department requirement \\
 \begin{adjustbox}{max totalsize={0.6\textwidth}{0.85\textheight},center}
 \includegraphics{src/images/matching_pipeline.pdf}
 \end{adjustbox}
-\caption{Matching pipeline. The query profile passes through three stages of progressively finer search, then three scorers at different terrain scales are fused using Reciprocal-Rank Fusion.}
+\caption{Matching pipeline: coarse search, refine, FastDTW, Reciprocal-Rank Fusion.}
 \label{fig:matching_pipeline}
 \end{figure}
 
@@ -177,7 +177,7 @@ Report printing and binding & $\sim$2000 & Department requirement \\
 \begin{adjustbox}{max totalsize={0.55\textwidth}{0.9\textheight},center}
 \includegraphics{src/images/activity_diagram.pdf}
 \end{adjustbox}
-\caption{System activity flow from user capture to location estimate. The feedback loop on the left rejects profiles that fail the quality gate and prompts the user to retake photos.}
+\caption{System activity flow from capture to location estimate.}
 \label{fig:activity_diagram}
 \end{figure}
 
@@ -199,8 +199,8 @@ Figure~\ref{fig:dataset_samples} shows sample images from each dataset used in t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth]{src/images/figures/fig_dataset_samples.png}
-\caption{Sample images from each dataset: GeoPose3K, Google Street View, sky photos, satellite texture, and synthetic output.}
+\includegraphics[width=0.92\textwidth]{src/images/figures/fig_dataset_samples.png}
+\caption{Sample images from each dataset used in this project.}
 \label{fig:dataset_samples}
 \end{figure}
 

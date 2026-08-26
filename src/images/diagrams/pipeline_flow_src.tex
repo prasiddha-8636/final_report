@@ -9,6 +9,7 @@
     box/.style={rectangle, draw=black, thick, minimum width=3.8cm, minimum height=0.7cm,
                 text centered, font=\small, rounded corners=2pt},
     arr/.style={-{Stealth[length=2mm]}, thick},
+    arrgray/.style={-{Stealth[length=2mm]}, thick, gray!70},
 ]
 
 % ── Column 1: Database (done once) ──
@@ -39,7 +40,7 @@
 \node[box, below=0.45cm of d1] (d2) {Segment sky (U-Net)};
 \node[box, below=0.45cm of d2] (d3) {Extract skyline profile};
 \node[box, below=0.45cm of d3] (d4) {Match database};
-\node[box, below=0.45cm of d4] (d5) {Location estimate};
+\node[box, below=0.45cm of d4] (d5) {Return location};
 
 \draw[arr] (dev) -- (d1);
 \draw[arr] (d1) -- (d2);
@@ -47,9 +48,9 @@
 \draw[arr] (d3) -- (d4);
 \draw[arr] (d4) -- (d5);
 
-% ── Connecting arrows ──
-\draw[arr] (db4.south) -- ++(0,-0.45) -| ([xshift=-0.4cm]dev.north);
-\draw[arr] (m3.south) -- ++(0,-0.45) -| ([xshift=0.4cm]dev.north);
+% ── Cross-column arrows (routed below boxes to avoid crossing) ──
+\draw[arrgray, dashed] (db4.south) -- ++(0,-0.6) -| (dev.south);
+\draw[arrgray, dashed] (m3.south) -- ++(0,-0.3) -| ([xshift=0.3cm]dev.south);
 
 \end{tikzpicture}
 \end{document}

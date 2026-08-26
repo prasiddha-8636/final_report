@@ -23,10 +23,10 @@
 \draw[arr] (gate) -- (loc);
 
 % Side inputs
-\node[left=0.8cm of cam, font=\small] (imu) {IMU + compass};
+\node[left=0.8cm of cam, font=\small] (imu) {Accelerometer + Magnetometer};
 \draw[arr, dashed] (imu) -- (cam);
 
-\node[left=0.8cm of match, font=\small] (db) {Embedded DB};
+\node[left=0.8cm of match, font=\small] (db) {Skyline Database};
 \draw[arr, dashed] (db) -- (match);
 
 \end{tikzpicture}

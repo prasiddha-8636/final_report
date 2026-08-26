@@ -49,13 +49,13 @@ Rendered under different weather and lighting conditions.
 \centering
 \includegraphics[width=\textwidth]{src/images/synthetic2.png}
 \end{subfigure}
-\caption{Synthetic queries: sunny, overcast, stormy haze.}
+\caption{Representative synthetic queries and ground-truth sky masks.}
 \label{fig:synthetic_examples}
 \end{figure}
 
 \subsection{Segmentation Training}
 
-15 epochs, synthetic data + GeoPose3K, transfer learning from pretrained MobileNetV3. Converges by epoch 10.
+15 epochs, synthetic data + GeoPose3K, transfer learning from pretrained MobileNetV3. Best checkpoint at epoch 13.
 
 \begin{figure}[H]
 \centering
@@ -115,7 +115,7 @@ $<$1\,km & 89.8\% \\
 \end{tabular}
 \end{table}
 
-For context, consumer \Gls{gps} in mountain terrain typically achieves 3--5\,m with clear sky view, degrading due to blockages and, sometimes cuts off altogether in deep mountain ridges. Our system operates without any satellite signal.
+Our system operates without any satellite signal.
 
 \begin{figure}[H]
 \centering
@@ -126,13 +126,22 @@ For context, consumer \Gls{gps} in mountain terrain typically achieves 3--5\,m w
 
 \subsection{Upper Bound}
 
-When the query profile is taken directly from the database (a perfect match), the matcher returns the correct location every time. This confirms that segmentation --- not matching --- is the bottleneck on real photos.
+When the query profile is taken directly from the database (a perfect match), the matcher returns the correct location every time. This controlled test shows that the matcher can recover the correct viewpoint for tested clean profiles. However, the noise experiment also reveals that terrain ambiguity can produce imposter matches even without added noise. Thus, both profile quality and intrinsic skyline ambiguity contribute to localization error.
 
 \section{Real-Photo Evaluation}
 
 \subsection{Dataset}
 
+The complete Street View collection contained 1,367 panoramas. Full collection was retained for analysing failure cases, while final localization evaluation used quality-controlled subset described below.
+
 68 multi-crop Google Street View panoramas from Khumbu. Each: 2--3 crops at 60$^\circ$--120$^\circ$ apart. Ground truth from \Gls{gps} metadata.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{src/images/fig_gsv_1367_cdf.png}
+\caption{Automatic skyline error distribution across all 1,367 panoramas (baseline scorer, finite errors only).}
+\label{fig:gsv_1367_cdf}
+\end{figure}
 
 Google Street View coverage in the Khumbu region has two important limitations. First, images are captured at relatively low resolution, which loses fine terrain detail at the skyline boundary. Second, many panoramas were captured during foggy or hazy conditions common at high altitude, producing washed-out skylines where the mountain-sky boundary is barely visible. These data quality issues mean that not every panorama can produce a reliable profile, making filtering a necessary step rather than an optional refinement.
 
@@ -164,7 +173,7 @@ Wide \Gls{fov} + consensus & 7 & 85.7\% & 85.7\% & $\sim$40\,m \\
 \end{tabular}
 \end{table}
 
-The filtered subset represents the cases where the input data is clean enough for reliable matching. When the system has good data, it performs well. The conservative filtering is a deliberate design choice: in a real trekking scenario, a wrong location estimate is worse than no estimate.
+The filtered subset represents the cases where the input data is clean enough for reliable matching. Seven images met all quality and consensus criteria and were used for final high-confidence evaluation. When the system has good data, it performs well. The conservative filtering is a deliberate design choice: in a real trekking scenario, a wrong location estimate is worse than no estimate.
 
 \begin{figure}[H]
 \centering
@@ -184,14 +193,20 @@ The filtered subset represents the cases where the input data is clean enough fo
 
 Two patterns among rejected panoramas: imposter mimicry (nearby \Gls{dem} points sharing similar profiles) and narrow \Gls{fov} (ambiguous single-crop profiles). Both are expected at 30\,m \Gls{dem} resolution and are compounded by the low image quality described above.
 
-\section{Noise Robustness}
+\subsection{Skyline Quality Diagnostic}
+
+To understand how much skyline extraction quality affects localization, a separate experiment compared automatic segmentation against hand-annotated skylines. Annotators drew correct sky-terrain boundaries on panorama crops using a web-based tool that snaps scribbles to nearby image edges. For each panorama, 2--3 crops at different headings were annotated. Of the 1,367 panoramas, 30 had enough annotated crops to produce a matching profile.
+
+Among these 30 panoramas, automatic skyline produced errors of several kilometres in some cases, while the corresponding annotated skyline produced errors below 100\,m. This indicates that skyline extraction --- not matching --- is a major source of error on real photographs.
+
+\section{Noise Sensitivity Test}
 
 Reference profiles corrupted with Gaussian noise at varying $\sigma$, matched back. This test uses a small sample ($n = 5$) to verify that the matcher tolerates reasonable profile noise.
 
 \begin{table}[H]
 \centering
-\caption{Noise robustness ($n = 5$)}
-\label{tab:noise_robustness}
+\caption{Noise sensitivity ($n = 5$)}
+\label{tab:noise_sensitivity}
 \begin{tabular}{ccc}
 \toprule
 \textbf{Noise $\sigma$} & \textbf{$<$100\,m} & \textbf{$<$1\,km} \\
@@ -206,7 +221,7 @@ Reference profiles corrupted with Gaussian noise at varying $\sigma$, matched ba
 \end{tabular}
 \end{table}
 
-Accuracy is stable up to 1.0$^\circ$ noise. The two failures at 0.0$^\circ$ are valley-symmetry imposter matches --- they fail regardless of noise because the terrain is ambiguous at 30\,m \Gls{dem} resolution.
+For five tested profiles, selected location remained unchanged up to 1.0$^\circ$ of added noise. The two failures at 0.0$^\circ$ are valley-symmetry imposter matches --- they fail regardless of noise because the terrain is ambiguous at 30\,m \Gls{dem} resolution.
 
 \section{Summary}
 
@@ -214,5 +229,5 @@ Accuracy is stable up to 1.0$^\circ$ noise. The two failures at 0.0$^\circ$ are 
     \item Synthetic: 86.4\% of answered queries within 500\,m, median 135\,m.
     \item Real-photo: with consensus filtering, 85.7\% within 1\,km, median $\sim$40\,m.
     \item Upper bound: correct location found every time with clean profiles.
-    \item Noise robustness: stable up to 1.0$^\circ$.
+    \item Noise sensitivity: unchanged up to 1.0$^\circ$.
 \end{itemize}
