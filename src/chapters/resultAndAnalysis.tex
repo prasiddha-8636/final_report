@@ -27,7 +27,7 @@ Ground truth & Camera location \\
 
 \subsection{Query Images}
 
-Rendered under different weather and lighting conditions.
+Here are some synthetic images rendered under different weather and lighting conditions.
 
 \begin{figure}[H]
 \centering
@@ -222,12 +222,3 @@ Reference profiles corrupted with Gaussian noise at varying $\sigma$, matched ba
 \end{table}
 
 For five tested profiles, selected location remained unchanged up to 1.0$^\circ$ of added noise. The two failures at 0.0$^\circ$ are valley-symmetry imposter matches --- they fail regardless of noise because the terrain is ambiguous at 30\,m \Gls{dem} resolution.
-
-\section{Summary}
-
-\begin{itemize}
-    \item Synthetic: 86.4\% of answered queries within 500\,m, median 135\,m.
-    \item Real-photo: with consensus filtering, 85.7\% within 1\,km, median $\sim$40\,m.
-    \item Upper bound: correct location found every time with clean profiles.
-    \item Noise sensitivity: unchanged up to 1.0$^\circ$.
-\end{itemize}
