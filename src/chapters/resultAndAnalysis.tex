@@ -7,7 +7,7 @@ Two evaluation settings: synthetic (controlled, 300 queries from the same \Gls{d
 
 \subsection{Setup}
 
-300 synthetic query images rendered from the Copernicus GLO-30 \Gls{dem} under different weather and lighting. Ground truth is the known camera location.
+300 synthetic query images rendered from the Copernicus GLO-30 \Gls{dem} under different weather and lighting. Ground truth is the known camera location. The synthetic evaluation uses a subset of 4{,}920 reference viewpoints sampled on a 500\,m grid for speed. The full system database contains 1.34 million viewpoints on a 30\,m grid.
 
 \begin{table}[H]
 \centering
@@ -18,7 +18,7 @@ Two evaluation settings: synthetic (controlled, 300 queries from the same \Gls{d
 \textbf{Parameter} & \textbf{Value} \\
 \midrule
 Study area & Khumbu, Nepal \\
-Reference viewpoints & 4{,}920 (500\,m grid) \\
+Reference viewpoints & 4{,}920 (500\,m grid, subset of 1.34M) \\
 Queries & 300 \\
 Ground truth & Camera location \\
 \bottomrule

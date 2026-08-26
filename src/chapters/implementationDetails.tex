@@ -55,7 +55,7 @@ float32 (raw) & 3.86\,GB & Uncompressed \\
 \end{tabular}
 \end{table}
 
-The matcher reads the database in batches of 4{,}000 rows: decode integers to floats, compute feature bundles, score all queries, update per-query top-K lists, discard the batch. Peak memory stays at about 150\,MB regardless of database size.
+The matcher reads the database in batches of 4{,}000 rows: decode integers to floats, compute feature bundles, score all queries, update per-query top-K lists, discard the batch. Peak memory stays below 150\,MB regardless of database size.
 
 \section{Segmentation Training}
 
@@ -191,7 +191,7 @@ When multiple photographs are available from the same location (taken at differe
 
 \subsection{Local Refinement and FastDTW}
 
-Each top-$k$ candidate expands to 12 neighbours at full resolution. Top 30 advance. FastDTW \cite{salvador2007fastdtw} re-ranks them using dynamic time warping (Manhattan distance, radius 15).
+Each top-$k$ candidate expands to 12 neighbours at full resolution. Top 30 advance. FastDTW \cite{salvador2007fastdtw} re-ranks them using \Gls{dtw} (Manhattan distance, radius 15).
 
 \begin{algorithm}[H]
 \caption{Matching Pipeline}
@@ -226,8 +226,6 @@ Multiple scorers operate at different terrain scales. Their ranked lists are fus
 \State \textbf{Return} $(lat_{v^*}, lon_{v^*})$, $\text{score}(v^*)$
 \end{algorithmic}
 \end{algorithm}
-
-\noindent Because RRF uses ranks rather than raw scores, scorers that produce numbers on different scales (e.g., correlation between 0 and 1, and bandpass energy in arbitrary units) can be combined without normalisation.
 
 \section{Mobile Prototype}
 
