@@ -67,7 +67,7 @@ Matching a photo against terrain data directly would require running ray-traces 
 
 \subsection{Viewpoint Grid}
 
-Candidate camera locations sit on a regular grid at 30\,m spacing. Every grid point gets a 360$^\circ$ horizon profile. The full set contains 1{,}338{,}650 viewpoints.
+Candidate camera locations sit on a regular grid at 30\,m spacing, matching the \Gls{dem} resolution. Flat or featureless viewpoints are filtered out during generation. After filtering, 1{,}338{,}650 viewpoints remain.
 
 \begin{table}[H]
 \centering
@@ -111,7 +111,7 @@ Training a segmentation network requires images with known sky-terrain boundarie
 Three layers composited together:
 
 \begin{enumerate}
-    \item \textbf{Terrain mesh} --- DEM vertices textured with satellite imagery, rendered by PyRender (OpenGL-based, headless via EGL).
+    \item \textbf{Terrain mesh} --- DEM vertices textured with satellite imagery, rendered by PyRender (an OpenGL-based library that runs headless through the Embedded Graphics Library, so no display is needed).
     \item \textbf{Sky backdrop} --- sky photos or gradients from one of six weather presets.
     \item \textbf{Camera effects} --- lens flare, rain streaks, sensor noise, vignette.
 \end{enumerate}
@@ -125,14 +125,18 @@ Three layers composited together:
 
 \subsection{Weather Presets}
 
-Six presets: \textit{sunny}, \textit{overcast}, \textit{sunset}, \textit{stormy haze}, \textit{night}, \textit{rainy}. Each controls lighting, sky gradients, clouds, and fog. Random selection per sample prevents overfitting to one condition.
+Six weather presets control the appearance of each synthetic scene: \textit{sunny}, \textit{overcast}, \textit{sunset}, \textit{stormy haze}, \textit{night}, and \textit{rainy}. Each preset specifies ambient lighting, sun colour and intensity, sky gradient colours, cloud coverage, fog density, and camera-side effects such as lens flare or rain streaks. The weather type is randomly selected for each training sample, with 30\% of samples receiving additional fog augmentation at 2.5--4.5$\times$ the base density. This variety prevents the network from overfitting to one lighting condition and improves robustness on real photographs taken under diverse weather.
 
 \section{Skyline Segmentation}
 \label{sec:segmentation}
 
 \subsection{U-Net Architecture}
 
-A \Gls{unet} with MobileNetV3-Large encoder produces a per-pixel probability map from a $256 \times 256$ colour image. The encoder compresses the image into abstract features using depthwise separable convolutions, which factor a standard convolution into a depthwise step (one filter per channel) and a pointwise step ($1 \times 1$ convolution across channels). This reduces parameters while maintaining representational capacity. The decoder upsamples back through skip connections that copy fine spatial details from the encoder to the decoder at each resolution level. These skip connections are critical for preserving the sharp sky-terrain boundary.
+A \Gls{unet} with MobileNetV3-Large encoder takes a $256 \times 256$ colour image and produces a probability map of the same size, where each pixel value indicates the likelihood of being sky (high) or terrain (low).
+
+The network has two halves. The \textbf{encoder} progressively compresses the image into smaller spatial dimensions while extracting increasingly abstract features. At each step, the spatial resolution halves and the number of feature channels doubles. The encoder uses depthwise separable convolutions, which factor a standard convolution into two cheaper steps: a depthwise convolution (one filter per input channel, acting spatially) followed by a pointwise convolution ($1 \times 1$ filter across channels). This reduces the number of parameters by roughly a factor of 8--9 compared to standard convolutions, while still learning effective feature representations.
+
+The \textbf{decoder} progressively upsamples the compressed features back to the original image resolution. At each upsampling step, skip connections copy the corresponding encoder feature maps and concatenate them with the decoder features. These skip connections are critical because the encoder discards spatial detail as it compresses; the skip connections restore the fine-grained positional information needed to locate the sky-terrain boundary precisely.
 
 \begin{figure}[H]
 \centering
@@ -143,7 +147,9 @@ A \Gls{unet} with MobileNetV3-Large encoder produces a per-pixel probability map
 
 \subsection{Transfer Learning from ImageNet}
 
-The encoder is pretrained on ImageNet, a large visual database containing roughly 14 million labelled photographs across 1000 categories. Although ImageNet contains no mountain images, its low-level features transfer well to mountain skylines. This works because early layers of convolutional networks learn universal visual primitives such as edges, textures, and colour gradients, which appear in any photographic domain. Using pretrained weights gives the network a strong starting point and reduces the amount of training data needed.
+The encoder is pretrained on ImageNet, a large visual database containing roughly 14 million labelled photographs across 1000 categories such as dogs, cars, and buildings. Training from scratch on such a large dataset would require significant compute and many thousands of labelled mountain images, which do not exist for the Khumbu region.
+
+Instead, the encoder starts with weights learned from ImageNet. This works because of a property of convolutional networks: early layers learn universal visual primitives --- edges, textures, colour gradients, and simple shapes --- that appear in any photographic domain, regardless of whether the images show mountains, animals, or city streets. These low-level features transfer directly to mountain skylines. Later layers, which learn more task-specific patterns, are fine-tuned during training on the mountain dataset. Using pretrained weights gives the network a strong starting point, reduces the amount of training data needed, and typically produces better results than random initialisation.
 
 \subsection{Loss Function}
 
@@ -164,94 +170,76 @@ The network is trained with a combined loss of binary cross-entropy (\Gls{bce}) 
 \mathcal{L}_{\text{Dice}} = 1 - \frac{2\sum_i y_i\hat{p}_i + \varepsilon}{\sum_i y_i + \sum_i \hat{p}_i + \varepsilon}, \qquad \varepsilon = 10^{-6}.
 \end{equation}
 
-BCE treats every pixel equally but is weak at boundaries. Dice focuses on overlap, giving more weight to the boundary where skyline accuracy matters. The combination addresses both problems.
+BCE penalises each pixel independently. It treats a misclassification at the boundary the same as a misclassification far from the boundary. Dice loss, on the other hand, measures the overall overlap between predicted and ground-truth regions. It assigns more importance to boundary pixels because those are the ones where the two regions intersect. Using only BCE would give a reasonable overall accuracy but a noisy boundary. Using only Dice would give a smooth boundary but could miss small terrain features. The combination balances both objectives.
 
 \subsection{Training}
 
-Trained on synthetic scenes and GeoPose3K. The optimizer is AdamW with cosine annealing. The best checkpoint is selected by validation \Gls{iou}.
+Trained on synthetic scenes and GeoPose3K \cite{brejcha2019geopose3k}. The optimizer is AdamW with cosine annealing. The best checkpoint is selected by validation \Gls{iou}. Training parameters are listed in Table~\ref{tab:training_config}.
 
-\begin{table}[H]
-\centering
-\caption{Training parameters}
-\label{tab:seg_training}
-\begin{tabularx}{0.85\textwidth}{l X}
-\toprule
-\textbf{Parameter} & \textbf{Value} \\
-\midrule
-Architecture & \Gls{unet} + MobileNetV3-large \\
-Pretraining & ImageNet (encoder weights) \\
-Loss & \Gls{bce} + soft Dice \\
-Optimizer & AdamW \\
-Training data & GeoPose3K + synthetic scenes \\
-\bottomrule
-\end{tabularx}
-\end{table}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.92\textwidth]{src/images/fig_augmentation_pipeline.png}
-\caption{Augmentation pipeline.}
-\label{fig:augmentation_pipeline}
-\end{figure}
 
 \subsection{Post-Processing the Segmentation Mask}
 \label{sec:post_processing}
 
 The raw network output is a probability map. Several refinement steps clean up the boundary:
 
-\paragraph{Thresholding.} Pixels with probability above 0.70 are classified as terrain, below as sky.
+\paragraph{Thresholding.} Pixels with probability above 0.70 are classified as terrain, below as sky. The threshold was set by inspection on a validation set: too high misses terrain at the boundary, too low lets sky bleed into the mask.
 
-\paragraph{Top-connected filtering.} Connected components are computed on the sky mask. Only components that touch the top 15\% of the image are kept. This removes isolated sky blobs caused by reflections, shadows, or fog patches that the network incorrectly labelled as sky.
+\paragraph{Top-connected filtering.} Connected components are computed on the sky mask. Only components that touch the top 15\% of the image are kept. This removes isolated sky blobs caused by reflections, shadows, or fog patches that the network incorrectly labelled as sky. The 15\% threshold comes from the observation that the sky always occupies the upper portion of a mountain photograph; any sky region disconnected from the top is almost certainly a false detection.
 
-\paragraph{CLAHE dehazing.} Contrast-Limited Adaptive Histogram Equalisation is applied to the sky zone only. CLAHE divides the image into small tiles and equalises the histogram of each tile independently, limiting contrast amplification to avoid noise boost. This restores contrast in foggy or hazy regions where the sky-terrain boundary is washed out.
+\paragraph{CLAHE dehazing.} Contrast-Limited Adaptive Histogram Equalisation is applied to the sky zone only. CLAHE divides the image into small tiles and equalises the histogram of each tile independently, limiting contrast amplification to avoid noise boost. This restores contrast in foggy or hazy regions where the sky-terrain boundary is washed out. Without this step, the edge detection that follows cannot find the boundary in low-contrast images.
 
-\paragraph{Multi-scale edge detection.} Canny edge detection runs at two scales: fine (Gaussian $\sigma = 3$, thresholds 30/150) and coarse ($\sigma = 7$, thresholds 20/100). The union of both edge maps captures boundaries at different sharpness levels. Edges are searched only within a narrow window ($\pm 10$ rows) around the U-Net boundary to avoid jumping to cloud edges far from the true terrain boundary.
+\paragraph{Multi-scale edge detection.} Canny edge detection runs at two scales: fine (Gaussian $\sigma = 3$, thresholds 30/150) and coarse ($\sigma = 7$, thresholds 20/100). The union of both edge maps captures boundaries at different sharpness levels. A single scale would either miss subtle boundaries (too fine) or detect too many spurious edges (too coarse). Edges are searched only within a narrow window ($\pm 10$ rows) around the U-Net boundary to avoid jumping to cloud edges far from the true terrain boundary.
 
-\paragraph{Sub-pixel fitting.} For each column, the Sobel-Y gradient is computed near the detected boundary. A parabola is fitted to the three points surrounding the gradient peak:
+\paragraph{Sub-pixel fitting.} The U-Net output and edge detection both operate at integer pixel resolution. However, the true sky-terrain boundary typically falls between two pixels. For each column, the Sobel-Y gradient is computed near the detected boundary. A parabola is fitted to the three points surrounding the gradient peak:
 
 \begin{equation}
 \delta = \frac{g_{i+1} - g_{i-1}}{2(g_{i+1} - 2g_i + g_{i-1})},
 \end{equation}
 
-\noindent where $g_{i-1}$, $g_i$, $g_{i+1}$ are the gradient values at the peak and its neighbours. The sub-pixel offset $\delta$ is clamped to $[-0.5, 0.5]$. This reduces quantisation noise from integer row positions.
+\noindent where $g_{i-1}$, $g_i$, $g_{i+1}$ are the gradient values at the peak and its neighbours. The sub-pixel offset $\delta$ is clamped to $[-0.5, 0.5]$. This reduces quantisation noise from integer row positions and improves the boundary accuracy from roughly 100 pixels to about 13 pixels (measured against ground truth).
 
-\paragraph{Outlier rejection and smoothing.} Boundary points more than 30\,px from the 5-neighbour median are rejected. The surviving boundary is interpolated across missing columns, then smoothed with a median filter ($k=9$) and a Gaussian filter ($\sigma = 7$, applied vertically). A two-pass slope constraint limits the boundary to at most 2\,px per column, removing sharp jumps from cloud edges.
+\paragraph{Outlier rejection and smoothing.} Even after edge detection, some columns may produce incorrect boundary positions due to clouds, shadows, or tree branches. Boundary points more than 30 pixels from the 5-neighbour median are rejected as outliers. The surviving boundary is interpolated across missing columns, then smoothed with a median filter ($k=9$) and a Gaussian filter ($\sigma = 7$, applied vertically). A two-pass slope constraint limits the boundary to at most 2 pixels per column, removing sharp jumps from cloud edges. Mountain horizons change gradually across the image; a jump of more than 2 pixels between adjacent columns almost always indicates an error rather than a real terrain feature.
 
 \section{Skyline Extraction}
 \label{sec:extraction}
 
-The binary sky mask becomes a 1-D elevation-angle profile. Each column maps to an azimuth angle through the camera intrinsics. The first terrain pixel from the top marks the skyline. The result is interpolated onto a uniform grid matching the database. Phone cameras capture only 60$^\circ$--80$^\circ$ horizontal FOV, so the 1-D profile allows matching a partial view against the full 360$^\circ$ reference by sliding it around.
+The binary sky mask becomes a 1-D elevation-angle profile. Each column of the mask corresponds to a specific azimuth direction through the camera's intrinsic parameters (focal length, principal point, and horizontal field of view). For each column, the first terrain pixel from the top marks the skyline. Its row position is converted to an elevation angle using the camera geometry, and the column index is converted to an azimuth angle. The result is a series of (azimuth, elevation) pairs.
 
-Profiles with standard deviation below 1.5$^\circ$, maximum elevation below 1.0$^\circ$, or boundary coverage below 50\% are rejected.
+These pairs are interpolated onto a uniform 0.5$^\circ$ azimuth grid matching the database format. If the image covers only 60$^\circ$--80$^\circ$ of the full horizon (typical for phone cameras), the resulting profile is a short segment that can be matched against the full 360$^\circ$ reference by sliding it to every possible offset position.
+
+Profiles with standard deviation below 1.5$^\circ$, maximum elevation below 1.0$^\circ$, or boundary coverage below 50\% are rejected. A flat profile contains little information to distinguish one viewpoint from another, and a partially visible boundary produces an incomplete profile that matches poorly.
 
 \section{Skyline Matching}
 \label{sec:matching}
 
 \subsection{Feature Representation}
 
-Pearson normalised cross-correlation (\Gls{ncc}) measures profile similarity regardless of absolute elevation. Two z-scored channels are used: the elevation profile and its first derivative. Both weighted equally. The z-score normalisation ensures that profiles with different absolute elevation scales can be compared directly.
+Pearson normalised cross-correlation (\Gls{ncc}) measures how similar two profiles are regardless of their absolute elevation. Two features are extracted from each profile: the elevation values themselves, and the first derivative (the change between consecutive bins). Both are z-scored before comparison, meaning each is shifted to have zero mean and scaled to have unit standard deviation. This normalisation ensures that profiles from locations at very different absolute heights can still be compared directly --- a ridge at 5000\,m and a ridge at 3000\,m produce comparable correlation scores if their shapes match. The two features are weighted equally (0.5 each) because both the absolute shape and the rate of change carry complementary matching information.
 
 \subsection{Three-Stage Matching}
 
-Scanning all 1.34M viewpoints at full resolution is too slow for a phone:
+The database contains 1.34M viewpoints, each with a 720-bin profile. Computing correlation at every possible offset for every viewpoint would require billions of operations, which is far too slow for a phone. The three-stage search reduces this to a manageable number of operations:
 
 \begin{enumerate}
-    \item \textbf{Coarse scan.} Sample every 12th viewpoint. \Gls{ncc} at every circular offset via \Gls{fft}. Top 5 kept.
-    \item \textbf{Local refinement.} Expand to 12 neighbours per candidate, re-scored at full resolution. Top 30 advance.
-    \item \textbf{FastDTW.} Re-rank top 30 using dynamic time warping \cite{salvador2007fastdtw}, which absorbs non-rigid shifts from camera tilt.
+    \item \textbf{Coarse scan.} Sample every 12th viewpoint from the database. For each sampled viewpoint, compute the NCC at every possible circular offset using the \Gls{fft}. The FFT converts the $O(N^2)$ sliding-window correlation into $O(N \log N)$ computation. Keep the top 5 candidates.
+    \item \textbf{Local refinement.} Expand to 12 spatial neighbours around each of the 5 coarse candidates. Re-score all neighbours at full resolution (not subsampled). Keep the top 30.
+    \item \textbf{FastDTW.} Re-rank the top 30 using dynamic time warping \cite{salvador2007fastdtw}. DTW allows non-linear alignment between the query and reference profiles, absorbing small horizontal shifts caused by camera tilt or imperfect segmentation. FastDTW approximates full DTW in $O(N)$ time by restricting the search radius to 15 bins.
 \end{enumerate}
 
 \subsection{Three Scorers}
 
-Different bandpass filters capture different terrain scales:
+A single elevation profile contains terrain features at many scales --- individual ridges, broad valleys, and the overall slope of the landscape. Matching at one scale can fail when, for example, two nearby locations share a similar broad valley shape but differ in ridge detail. Using multiple scorers, each tuned to a different scale, reduces this risk.
+
+The three scorers used are:
 
 \begin{itemize}
-    \item \textbf{Baseline} --- full elevation profile and its derivative.
-    \item \textbf{Bandpass 1} --- ridge-scale features (2--8\,km). Created by subtracting a wide Gaussian from a narrow Gaussian in the frequency domain, isolating medium-scale terrain features.
-    \item \textbf{Bandpass 2} --- valley-scale features (3--16\,km). Uses wider Gaussians to capture broad terrain patterns.
+    \item \textbf{Baseline} --- the full elevation profile and its first derivative, capturing all scales.
+    \item \textbf{Bandpass 1} --- ridge-scale features (2--8\,km). A bandpass filter is created by subtracting a wide Gaussian from a narrow Gaussian in the frequency domain. This isolates medium-scale terrain features, filtering out both broad slopes and fine noise.
+    \item \textbf{Bandpass 2} --- valley-scale features (3--16\,km). Uses wider Gaussians to capture broad terrain patterns while ignoring individual ridges.
 \end{itemize}
 
-Reciprocal-Rank Fusion (RRF) combines all three ranked lists into one. RRF assigns each candidate a score of $\frac{1}{k + \text{rank}}$ for each scorer (with $k = 60$), then sums across scorers. Because RRF uses ranks, not raw scores, different scorer scales do not matter.
+Each scorer produces its own ranked list of candidate locations. Reciprocal-Rank Fusion (RRF) combines these lists into a single ranked list. RRF assigns each candidate a score of $\frac{1}{k + \text{rank}}$ for each scorer (with $k = 60$), then sums across scorers. A candidate ranked first by two scorers and third by the third scorer gets a fused score of $\frac{1}{61} + \frac{1}{61} + \frac{1}{63}$. Because RRF uses ranks rather than raw scores, scorers that produce numbers on different scales (e.g., correlation between 0 and 1, and bandpass energy in arbitrary units) can be combined without normalisation.
 
 \subsection{Quality Filters}
 
@@ -260,7 +248,7 @@ Candidates with low correlation or small score gaps are rejected. The matcher re
 \section{Mobile Client}
 \label{sec:mobile}
 
-Everything runs on the phone with no network needed. Device sensors (accelerometer and magnetometer) draw a level overlay on the camera preview. Two or three overlapping photos at different headings can be stitched into one wider horizon.
+A small prototype was built to verify that the full pipeline --- segmentation, profile extraction, and matching --- fits on a mobile device. The prototype runs entirely offline with no network needed. Device sensors (accelerometer and magnetometer) draw a level overlay on the camera preview. Two or three overlapping photos at different headings are independently processed and stitched into one wider horizon before matching.
 
 \begin{figure}[H]
 \centering
@@ -274,7 +262,11 @@ Everything runs on the phone with no network needed. Device sensors (acceleromet
 \section{Physical Limits}
 \label{sec:physics}
 
-Two physical reasons limit the ray-trace range to 30\,km. Earth curvature hides ridges beyond this distance. Atmospheric visibility also degrades --- contrast drops to about 10\% at 30\,km in clear mountain air. Full derivations are in Appendix~\ref{app:derivations}.
+Two physical reasons limit the ray-trace range to 30\,km.
+
+Earth curvature hides ridges beyond this distance. Over a spherical Earth, the horizon drops by $\delta = d^2 / (2R_E)$ at distance $d$, where $R_E \approx 6371$\,km is the Earth's radius. At 30\,km, terrain features more than about 440\,m below the observer's eye level are hidden behind the curvature of the Earth itself. This means ray-tracing beyond 30\,km would add viewpoints whose horizons are partially or fully determined by the Earth's shape rather than the actual terrain.
+
+Atmospheric visibility also degrades with distance. According to the Koschmieder visibility law, contrast drops exponentially with distance. In clear mountain air (meteorological visibility roughly 50\,km), terrain contrast falls to about 10\% at 30\,km. Beyond this range, skyline features become too faint to extract reliably from photographs. Full derivations are in Appendix~\ref{app:derivations}.
 
 \begin{figure}[H]
 \centering

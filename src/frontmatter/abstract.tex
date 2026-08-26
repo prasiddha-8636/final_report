@@ -1,9 +1,10 @@
+\chapter*{ABSTRACT}
 \begin{abstract}
 \noindent
-Outdoor navigation in mountain terrain is difficult because \Gls{gnss} signals weaken behind ridges. This project builds a camera-based location estimator for the Khumbu region of Nepal. A reference database of 1.34 million horizon profiles is precomputed from a 30\,m DEM. A U-Net with MobileNetV3-Large encoder segments sky from terrain. The extracted skyline is matched against the database using three scorers fused by Reciprocal-Rank Fusion.
+Outdoor navigation in mountain terrain is difficult because \Gls{gnss} signals weaken behind ridges. This project builds a camera-based location estimator for the Khumbu region of Nepal. A reference database of 1.34 million horizon profiles is precomputed from a 30\,m \Gls{dem}. A \Gls{unet} with MobileNetV3-Large encoder segments sky from terrain. The extracted skyline is matched against the database using three scorers fused by Reciprocal-Rank Fusion.
 
-On 300 synthetic queries, 86.4\% are localised within 500\,m (median 135\,m). On 68 real Street View panoramas, a consensus gate selecting high-confidence wide-FOV matches achieves 85.7\% within 1\,km (median $\sim$40\,m), without any satellite signal.
+On 300 synthetic queries, 86.4\% of answered queries are localised within 500\,m (median 135\,m). On 68 Google Street View panoramas --- which are low-resolution and frequently affected by haze and fog in the Khumbu region --- a consensus filter selecting high-confidence wide-FOV matches achieves 85.7\% accuracy within 1\,km (median $\sim$40\,m), without any satellite signal.
 
 \smallskip
-\noindent\textbf{Keywords:} skyline matching, terrain localisation, U-Net segmentation, horizon profile, reciprocal-rank fusion, Khumbu
+\noindent\textbf{Keywords:} skyline matching, terrain localisation, \Gls{unet} segmentation, horizon profile, reciprocal-rank fusion, Khumbu
 \end{abstract}

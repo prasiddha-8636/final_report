@@ -1,13 +1,13 @@
 \chapter{Results and Analysis}
 \label{chap:results}
 
-Two evaluation settings: synthetic (controlled, 300 queries from the same DEM) and real-photo (68 Google Street View panoramas from Khumbu).
+Two evaluation settings: synthetic (controlled, 300 queries from the same \Gls{dem}) and real-photo (68 Google Street View panoramas from Khumbu).
 
 \section{Synthetic Evaluation}
 
 \subsection{Setup}
 
-300 synthetic query images rendered from the Copernicus GLO-30 DEM under different weather and lighting. Ground truth is the known camera location.
+300 synthetic query images rendered from the Copernicus GLO-30 \Gls{dem} under different weather and lighting. Ground truth is the known camera location.
 
 \begin{table}[H]
 \centering
@@ -60,13 +60,13 @@ Rendered under different weather and lighting conditions.
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{src/images/fig_training_curves.png}
-\caption{Training/validation loss and IoU. Green: best-checkpoint epoch.}
+\caption{Training/validation loss and \Gls{iou}. Green: best-checkpoint epoch.}
 \label{fig:training_curves}
 \end{figure}
 
 \subsection{Boundary Refinement}
 
-Raw U-Net boundaries are 100 pixels off on average. Edge detection and sub-pixel fitting reduce this to 12.9 pixels.
+Raw \Gls{unet} boundaries are 100 pixels off on average. Edge detection and sub-pixel fitting reduce this to 12.9 pixels.
 
 \begin{table}[H]
 \centering
@@ -74,11 +74,11 @@ Raw U-Net boundaries are 100 pixels off on average. Edge detection and sub-pixel
 \label{tab:seg_ablation}
 \begin{tabular}{lcc}
 \toprule
-\textbf{Method} & \textbf{Median (px)} & \textbf{Valid cols (\%)} \\
+\textbf{Method} & \textbf{Median (px)} \\
 \midrule
-Raw U-Net & 100.0 & 100 \\
-Edge detection only & 38.0 & 100 \\
-\textbf{Edge detection + sub-pixel} & \textbf{12.89} & \textbf{100} \\
+Raw \Gls{unet} & 100.0 \\
+Edge detection only & 38.0 \\
+\textbf{Edge detection + sub-pixel} & \textbf{12.89} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -94,7 +94,7 @@ Edge detection only & 38.0 & 100 \\
 
 \subsection{Accuracy}
 
-Of 300 queries, 206 pass the quality gate. The remaining 94 are rejected --- the segmentation produced a profile too noisy to match reliably. This happens under heavy fog or haze where the sky-terrain boundary is unclear.
+Of 300 queries, 206 pass the quality gate. The remaining 94 are rejected because the segmentation produced a profile too noisy to match reliably. This occurs mainly under heavy fog or haze where the sky-terrain boundary is unclear.
 
 Among the 206 answered queries:
 
@@ -115,12 +115,12 @@ $<$1\,km & 89.8\% \\
 \end{tabular}
 \end{table}
 
-For context, consumer GPS in mountain terrain typically achieves 5--15\,m with clear sky view, degrading to 30--100\,m behind ridges. Our system operates without any satellite signal.
+For context, consumer \Gls{gps} in mountain terrain typically achieves 3--5\,m with clear sky view, degrading due to blockages and, sometimes cuts off altogether in deep mountain ridges. Our system operates without any satellite signal.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{src/images/fig_accuracy_thresholds.png}
-\caption{Cumulative accuracy vs. error threshold.}
+\caption{Cumulative accuracy vs.\ error threshold.}
 \label{fig:accuracy_thresholds}
 \end{figure}
 
@@ -132,9 +132,9 @@ When the query profile is taken directly from the database (a perfect match), th
 
 \subsection{Dataset}
 
-68 multi-crop GSV panoramas from Khumbu. Each: 2--3 crops at 60$^\circ$--120$^\circ$ apart. Ground truth from GPS metadata. This is the complete set available in the study area with reliable ground truth.
+68 multi-crop Google Street View panoramas from Khumbu. Each: 2--3 crops at 60$^\circ$--120$^\circ$ apart. Ground truth from \Gls{gps} metadata.
 
-Real photos differ from synthetic in important ways: lens distortion, motion blur, exposure variation, and segmentation errors all degrade the extracted profile.
+Google Street View coverage in the Khumbu region has two important limitations. First, images are captured at relatively low resolution, which loses fine terrain detail at the skyline boundary. Second, many panoramas were captured during foggy or hazy conditions common at high altitude, producing washed-out skylines where the mountain-sky boundary is barely visible. These data quality issues mean that not every panorama can produce a reliable profile, making filtering a necessary step rather than an optional refinement.
 
 \subsection{Scorers}
 
@@ -142,7 +142,7 @@ Three scorers are used. The baseline scorer uses the full elevation profile and 
 
 \subsection{Filtering and Accuracy}
 
-Without filtering, most panos fail because segmentation produces noisy profiles from haze, blur, or narrow field of view. Two types of filtering help:
+Most panoramas produce noisy profiles because of the low resolution and haze described above. Two types of filtering remove unreliable matches:
 
 \begin{enumerate}
     \item \textbf{Wide field of view} --- wider coverage breaks valley symmetry.
@@ -158,13 +158,13 @@ Without filtering, most panos fail because segmentation produces noisy profiles 
 \textbf{Filter} & \textbf{$n$} & \textbf{$<$100\,m} & \textbf{$<$1\,km} & \textbf{Median} \\
 \midrule
 No filter & 68 & 11.8\% & 13.2\% & 15.8\,km \\
-Wide FOV $\geq$ 200$^\circ$ & 25 & 28.0\% & 28.0\% & 14.4\,km \\
-Wide FOV + consensus & 7 & 85.7\% & 85.7\% & $\sim$40\,m \\
+Wide \Gls{fov} $\geq$ 200$^\circ$ & 25 & 28.0\% & 28.0\% & 14.4\,km \\
+Wide \Gls{fov} + consensus & 7 & 85.7\% & 85.7\% & $\sim$40\,m \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The system is deliberately conservative. When scorers disagree, it abstains rather than guesses. In a real trekking scenario, a wrong location estimate is worse than no estimate.
+The filtered subset represents the cases where the input data is clean enough for reliable matching. When the system has good data, it performs well. The conservative filtering is a deliberate design choice: in a real trekking scenario, a wrong location estimate is worse than no estimate.
 
 \begin{figure}[H]
 \centering
@@ -176,17 +176,17 @@ The system is deliberately conservative. When scorers disagree, it abstains rath
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.8\textwidth]{src/images/fig_consensus_gate.png}
-\caption{Accuracy improves with wider FOV and scorer consensus.}
+\caption{Accuracy improves with wider \Gls{fov} and scorer consensus.}
 \label{fig:consensus_gate}
 \end{figure}
 
 \subsection{Failure Analysis}
 
-Two patterns among rejected panos: imposter mimicry (nearby DEM points sharing similar profiles) and narrow FOV (ambiguous single-crop profiles). Both are expected at 30\,m DEM resolution.
+Two patterns among rejected panoramas: imposter mimicry (nearby \Gls{dem} points sharing similar profiles) and narrow \Gls{fov} (ambiguous single-crop profiles). Both are expected at 30\,m \Gls{dem} resolution and are compounded by the low image quality described above.
 
 \section{Noise Robustness}
 
-DB profiles corrupted with Gaussian noise at varying $\sigma$, matched back.
+Reference profiles corrupted with Gaussian noise at varying $\sigma$, matched back. This test uses a small sample ($n = 5$) to verify that the matcher tolerates reasonable profile noise.
 
 \begin{table}[H]
 \centering
@@ -201,12 +201,12 @@ DB profiles corrupted with Gaussian noise at varying $\sigma$, matched back.
 0.5$^\circ$ & 3/5 & 3/5 \\
 1.0$^\circ$ & 3/5 & 3/5 \\
 2.0$^\circ$ & 2/5 & 3/5 \\
-\texttt{uint8} quant & 3/5 & 3/5 \\
+\texttt{uint8} quantization & 3/5 & 3/5 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Accuracy is stable up to 1.0$^\circ$ noise. The two failures at 0.0$^\circ$ are valley-symmetry imposter matches --- they fail regardless of noise because the terrain is ambiguous at 30\,m DEM resolution.
+Accuracy is stable up to 1.0$^\circ$ noise. The two failures at 0.0$^\circ$ are valley-symmetry imposter matches --- they fail regardless of noise because the terrain is ambiguous at 30\,m \Gls{dem} resolution.
 
 \section{Summary}
 

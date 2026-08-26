@@ -1,35 +1,35 @@
-\documentclass[border=12pt]{standalone}
+\documentclass[border=16pt]{standalone}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning}
 \begin{document}
 \begin{tikzpicture}[
-    node distance=0.6cm,
-    input/.style={rectangle, draw=black, thick, minimum width=4.5cm, minimum height=0.85cm,
-                  text centered, font=\normalsize, rounded corners=2pt},
-    process/.style={rectangle, draw=black, thick, minimum width=5.2cm, minimum height=1.0cm,
-                    text centered, font=\normalsize\bfseries, fill=gray!8},
-    output/.style={rectangle, draw=black, thick, minimum width=4.5cm, minimum height=0.85cm,
-                   text centered, font=\normalsize, rounded corners=2pt, fill=gray!5},
-    arr/.style={-{Stealth[length=2.5mm]}, thick},
+    node distance=0.7cm and 1.5cm,
+    input/.style={rectangle, draw=black, thick, minimum width=3.8cm, minimum height=0.8cm,
+                  text centered, font=\small, rounded corners=2pt},
+    process/.style={rectangle, draw=black, thick, minimum width=4.8cm, minimum height=0.9cm,
+                    text centered, font=\small\bfseries, fill=gray!6, rounded corners=2pt},
+    output/.style={rectangle, draw=black, thick, minimum width=3.8cm, minimum height=0.8cm,
+                   text centered, font=\small, rounded corners=2pt, fill=gray!5},
+    arr/.style={-{Stealth[length=2mm]}, thick},
 ]
 
-% Inputs
+% Inputs (top row)
 \node[input] (dem) {DEM (30 m)};
-\node[input, right=1.2cm of dem] (sat) {Satellite texture};
-\node[input, right=1.2cm of sat] (cloud) {Cloud photos};
+\node[input, right=1.5cm of dem] (sat) {Satellite texture};
+\node[input, right=1.5cm of sat] (sky) {Sky photos / gradients};
 
 % Renderer
-\node[process, below=1cm of $(dem)!0.5!(cloud)$] (render) {PyRender (EGL)};
-\node[font=\small, below=0.1cm of render] (weather) {6 weather presets};
+\node[process, below=1.2cm of $(dem)!0.5!(sky)$] (render) {PyRender};
+\node[font=\footnotesize, below=0.05cm of render] (weather) {6 weather presets};
 
-% Outputs
-\node[output, below left=1cm and 0.3cm of render] (img) {RGB image};
-\node[output, below right=1cm and 0.3cm of render] (mask) {Sky mask (GT)};
+% Outputs (bottom row)
+\node[output, below left=1.0cm and 0.2cm of render] (img) {RGB image};
+\node[output, below right=1.0cm and 0.2cm of render] (mask) {Sky mask (ground truth)};
 
 % Arrows
 \draw[arr] (dem) -- (render);
 \draw[arr] (sat) -- (render);
-\draw[arr] (cloud) -- (render);
+\draw[arr] (sky) -- (render);
 \draw[arr] (render) -- (img);
 \draw[arr] (render) -- (mask);
 

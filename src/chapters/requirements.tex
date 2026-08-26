@@ -37,7 +37,7 @@ ID & Requirement \\
 \midrule
 NFR-01 & Work offline, no internet. \\
 NFR-02 & Lightweight segmentation model for mobile. \\
-NFR-03 & Stream the reference database in small batches (peak RAM $<$ 150\,MB). \\
+NFR-03 & Stream the reference database in small batches (peak \Gls{ram} $<$ 150\,MB). \\
 NFR-04 & Database regenerable for different study areas by swapping the DEM. \\
 NFR-05 & Modular pipeline, each component updatable independently. \\
 NFR-06 & Segmentation, extraction, and matching on-device via ONNX. \\
@@ -103,7 +103,7 @@ OpenCV & Image I/O, CLAHE, Canny, morphological ops \\
 NumPy \& SciPy & Arrays, FFT cross-correlation, Gaussian filtering \\
 Rasterio & Reading GeoTIFF DEMs \\
 HORAYZON & Ray-tracing horizon profiles from DEM mesh \\
-PyRender & Rendering synthetic scenes (EGL, headless) \\
+PyRender & Rendering synthetic scenes (headless via Embedded Graphics Library) \\
 trimesh & DEM vertices to triangle mesh \\
 FastDTW & Fine alignment between query and reference \\
 pyarrow \& pandas & Parquet database I/O \\

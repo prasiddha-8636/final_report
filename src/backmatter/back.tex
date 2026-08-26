@@ -111,7 +111,7 @@ The project was developed entirely using open-source software and publicly avail
 \label{tab:budget}
 \begin{tabular}{p{6cm}cc}
 \toprule
-\textbf{Item} & \textbf{Cost (NPR)} & \textbf{Remarks} \\
+\textbf{Item} & \textbf{Cost (NPR\footnote{NPR = Nepalese Rupee})} & \textbf{Remarks} \\
 \midrule
 Copernicus GLO-30 DEM data & 0 & Open access \\
 PyTorch, ONNX Runtime, Horayzon, PyRender & 0 & Open source \\
@@ -120,9 +120,9 @@ Kivy mobile framework & 0 & Open source \\
 Google Street View imagery (evaluation) & 0 & Public \\
 Personal laptop (development) & 0 & Existing \\
 Google Colab (GPU training) & 0 & Free tier \\
-Report printing and binding & $\sim$500 & Department requirement \\
+Report printing and binding & $\sim$2000 & Department requirement \\
 \midrule
-\textbf{Total} & $\sim$500 & \\
+\textbf{Total} & $\sim$2000 & \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -137,21 +137,84 @@ Report printing and binding & $\sim$500 & Department requirement \\
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth,height=0.68\textheight,keepaspectratio]{src/images/figures/gantt.png}
-    \caption{Project Gantt chart. Milestones mark Proposal Defense (Jun 17), Mid-Term Defense (Jul 21), and Final Defense (Aug 31).}
+    \caption{Project Timeline.}
     \label{fig:gantt_chart}
 \end{figure}
 
 
 % ============================================================
-% APPENDIX D — PLAGIARISM REPORT
+% APPENDIX D — PIPELINE DIAGRAMS
 % ============================================================
-\chapter{Plagiarism Report}
-\label{app:plagiarism}
+\chapter{Pipeline Diagrams}
+\label{app:diagrams}
 
-\begin{center}
-\vspace{3cm}
-\fbox{\parbox{0.8\textwidth}{\centering\large
-Attach the plagiarism check report (Turnitin or equivalent) provided by the department here.
-}}
-\vspace{3cm}
-\end{center}
+\section{Sky Mask Post-Processing}
+
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max totalsize={0.65\textwidth}{0.85\textheight},center}
+\includegraphics{src/images/postprocessing.pdf}
+\end{adjustbox}
+\caption{Post-processing pipeline. Each step addresses a specific failure mode: thresholding gives a rough mask, top-connected filtering removes false sky blobs, CLAHE restores contrast in fog, Canny detects the true boundary, sub-pixel fitting improves precision, and smoothing removes remaining noise.}
+\label{fig:postprocessing}
+\end{figure}
+
+\section{Matching Pipeline}
+
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max totalsize={0.6\textwidth}{0.85\textheight},center}
+\includegraphics{src/images/matching_pipeline.pdf}
+\end{adjustbox}
+\caption{Matching pipeline. The query profile passes through three stages of progressively finer search, then three scorers at different terrain scales are fused using Reciprocal-Rank Fusion.}
+\label{fig:matching_pipeline}
+\end{figure}
+
+\section{System Activity Flow}
+
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max totalsize={0.55\textwidth}{0.9\textheight},center}
+\includegraphics{src/images/activity_diagram.pdf}
+\end{adjustbox}
+\caption{System activity flow from user capture to location estimate. The feedback loop on the left rejects profiles that fail the quality gate and prompts the user to retake photos.}
+\label{fig:activity_diagram}
+\end{figure}
+
+
+% ============================================================
+% APPENDIX E — DATASET SAMPLES
+% ============================================================
+\chapter{Dataset Samples}
+\label{app:dataset}
+
+Figure~\ref{fig:dataset_samples} shows sample images from each dataset used in this project.
+
+\begin{itemize}
+    \item \textbf{GeoPose3K} (row 1): Mountain photographs with annotated sky-terrain boundaries, taken in the European Alps. Used for training the segmentation network.
+    \item \textbf{Google Street View} (row 2): Panoramic crops from the Khumbu region. Note the fog, haze, and low resolution in most images, which motivates the filtering described in Chapter~\ref{chap:results}.
+    \item \textbf{Sky photos} (row 3): Cloud and sky photographs used as backdrops in synthetic training data. Combined with terrain meshes under different weather presets.
+    \item \textbf{Satellite texture} (row 4): Esri World Imagery cropped to the study area. Textured onto the DEM mesh for realistic terrain rendering.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{src/images/figures/fig_dataset_samples.png}
+\caption{Sample images from each dataset: GeoPose3K, Google Street View, sky photos, satellite texture, and synthetic output.}
+\label{fig:dataset_samples}
+\end{figure}
+
+
+% ============================================================
+% APPENDIX F — PLAGIARISM REPORT
+% ============================================================
+% \chapter{Plagiarism Report}
+% \label{app:plagiarism}
+
+% \begin{center}
+% \vspace{3cm}
+% \fbox{\parbox{0.8\textwidth}{\centering\large
+% Attach the plagiarism check report (Turnitin or equivalent) provided by the department here.
+% }}
+% \vspace{3cm}
+% \end{center}

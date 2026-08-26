@@ -9,17 +9,82 @@
 \tableofcontents
 \listoffigures
 \listoftables
+
+% LIST OF ALGORITHMS
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{LIST OF ALGORITHMS}
 \listofalgorithms
+\afterpage{\clearpage}
+\phantomsection
 
 % LIST OF ABBREVIATIONS
 % Automatically generated from acronyms used in the document
-\addcontentsline{toc}{chapter}{LIST OF ABBREVIATIONS}
+\afterpage{\clearpage}
+\phantomsection
 \glsaddall
 \printnoidxglossary[type=\acronymtype,title={LIST OF ABBREVIATIONS}]
 \glsresetall
+\afterpage{\clearpage}
+\phantomsection
 
 % LIST OF SYMBOLS
-% Automatically generated from symbols used in the document
-% \addcontentsline{toc}{chapter}{LIST OF SYMBOLS}
-% \printglossary[type=symbols,title={LIST OF SYMBOLS}]
-% \clearpage
+\chapter*{LIST OF SYMBOLS}
+\addcontentsline{toc}{chapter}{LIST OF SYMBOLS}
+
+\begin{longtable}{@{}p{0.18\textwidth}p{0.72\textwidth}@{}}
+\toprule
+\textbf{Symbol} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Symbol} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+
+\multicolumn{2}{@{}l}{\textit{Greek letters}} \\
+$\theta$ & Elevation angle (degrees) \\
+$\theta_a$ & Elevation angle at azimuth $a$ \\
+$\theta_{\max}$ & Maximum elevation angle along a ray \\
+$\alpha$ & Azimuth angle (degrees) \\
+$\beta_c$ & Elevation angle at column $c$ \\
+$\delta$ & Sub-pixel offset, azimuth bin size, or curvature drop \\
+$\Delta d$ & Ray-trace step size (30\,m) \\
+$\sigma$ & Gaussian standard deviation or noise level \\
+$\varepsilon$ & Small constant ($10^{-6}$) to avoid division by zero \\
+$\phi_y$ & Vertical field of view (degrees) \\
+$\phi_x$ & Horizontal field of view (degrees) \\
+$\Phi$ & Angular coverage of a fused profile (degrees) \\
+$\Theta$ & Fused 360$^\circ$ elevation profile \\
+\midrule
+
+\multicolumn{2}{@{}l}{\textit{Calligraphic}} \\
+$\mathcal{L}$ & Combined loss function \\
+$\mathcal{L}_{\text{BCE}}$ & Binary cross-entropy loss \\
+$\mathcal{L}_{\text{Dice}}$ & Soft Dice loss \\
+\midrule
+
+\multicolumn{2}{@{}l}{\textit{Estimated values}} \\
+$\hat{p}_i$ & Predicted sky probability for pixel $i$ \\
+$y_i$ & Ground-truth label for pixel $i$ (1 = sky, 0 = terrain) \\
+\midrule
+
+\multicolumn{2}{@{}l}{\textit{Latin letters}} \\
+$N$ & Number of azimuth bins (720) \\
+$K$ & Number of bins in a partial profile \\
+$C$ & Number of crop images \\
+$W$ & Image width (pixels) \\
+$H$ & Image height (pixels) \\
+$h_t$ & Terrain elevation at sample point (metres) \\
+$h_o$ & Observer eye height above terrain (1.6\,m) \\
+$d_a$ & Horizontal distance along ray at azimuth $a$ (metres) \\
+$f_x$ & Horizontal focal length (pixels) \\
+$f_y$ & Vertical focal length (pixels) \\
+$R_E$ & Earth's radius ($\approx 6371$\,km) \\
+$k$ & RRF rank constant (60) or filter kernel size \\
+$s$ & Coarse scan stride (12) \\
+
+\end{longtable}
+\clearpage

@@ -1,11 +1,40 @@
 \chapter{Implementation Details}
 \label{chap:implementation}
 
-The algorithms, parameters, and tools behind each pipeline stage.
+This chapter presents the algorithms behind each pipeline stage in pseudocode. Parameters, complexity notes, and implementation choices are given alongside each algorithm.
 
 \section{Reference Skyline Database}
 
 HORAYZON reads the Copernicus GLO-30 raster and processes the viewpoint grid in batches of 4{,}096. The full 1.34M-viewpoint database takes about 6--8 hours on a modern workstation.
+
+\subsection{Ray-Traced Horizon Computation}
+
+For each viewpoint, 720 rays are cast through the DEM mesh. Each ray walks along the terrain surface, tracking the maximum elevation angle encountered. The algorithm below runs independently for every viewpoint.
+
+\begin{algorithm}[H]
+\caption{Ray-Traced Horizon}
+\label{alg:raytrace}
+\begin{algorithmic}[1]
+\State \textbf{Input:} viewpoint $(x_o, y_o, h_o)$, DEM grid $G$, range $R = 30$\,km, $N = 720$ bins
+\State \textbf{Output:} elevation profile $\theta[0 \ldots N{-}1]$
+\For{each azimuth $a_i = i \cdot 360/N$, $i = 0 \ldots N{-}1$}
+    \State $\theta_{\max} \leftarrow -\infty$
+    \State Compute ray direction $(\Delta x, \Delta y)$ from $a_i$
+    \For{each sample distance $d = 0, \Delta d, 2\Delta d, \ldots, R$}
+        \State $(x_s, y_s) \leftarrow (x_o + d \cdot \Delta x,\; y_o + d \cdot \Delta y)$
+        \State $h_t \leftarrow \text{bilinear\_interpolate}(G, x_s, y_s)$
+        \State $\theta \leftarrow \arctan\!\big((h_t - h_o) / d\big)$
+        \If{$\theta > \theta_{\max}$}
+            \State $\theta_{\max} \leftarrow \theta$
+        \EndIf
+    \EndFor
+    \State $\theta[i] \leftarrow \theta_{\max}$
+\EndFor
+\State \textbf{Return} $\theta$
+\end{algorithmic}
+\end{algorithm}
+
+\noindent The DEM is sampled at 30\,m intervals. The step size $\Delta d$ controls the trade-off between accuracy and speed; a 30\,m step is sufficient because terrain elevation changes smoothly over short distances. The eye height $h_o$ includes 1.6\,m above the terrain surface to approximate a standing observer.
 
 \subsection{Storage and Streaming}
 
@@ -50,9 +79,95 @@ Data & GeoPose3K + synthetic scenes \\
 
 The model is exported from PyTorch to \Gls{onnx} (opset 11, $256 \times 256$ fixed input) for mobile inference.
 
+\section{Sky Mask Post-Processing}
+
+The raw \Gls{unet} output is refined through a multi-step pipeline. Each step addresses a specific failure mode.
+
+\begin{algorithm}[H]
+\caption{Sky Mask Post-Processing}
+\label{alg:postprocess}
+\begin{algorithmic}[1]
+\State \textbf{Input:} image $I$ (H$\times$W$\times$3), raw probability map $P$
+\State \textbf{Output:} refined binary mask $M$ (sky=0, terrain=255)
+\State $M_{\text{raw}} \leftarrow (P > 0.70)$ \Comment{Threshold}
+\State $M_{\text{top}} \leftarrow \text{top\_connected}(M_{\text{raw}})$ \Comment{Keep sky touching top 15\%}
+\State $I_{\text{enh}} \leftarrow \text{CLAHE}(I, M_{\text{top}})$ \Comment{Dehaze sky zone only}
+\State $E_{\text{fine}} \leftarrow \text{Canny}(I_{\text{enh}}, \sigma=3, 30/150)$
+\State $E_{\text{coarse}} \leftarrow \text{Canny}(I_{\text{enh}}, \sigma=7, 20/100)$
+\State $E \leftarrow E_{\text{fine}} \cup E_{\text{coarse}}$
+\For{each column $c = 0 \ldots W{-}1$}
+    \State Find boundary row $r_c$ from $M_{\text{top}}$ (first terrain pixel from top)
+    \State Search $E$ within $[r_c - 10,\; r_c + 10]$ for edge pixel $r'_c$
+    \State $r_c \leftarrow r'_c$ if found, else keep $r_c$
+\EndFor
+\State $r \leftarrow \text{subpixel\_fit}(r, I)$ \Comment{Parabolic fit per column}
+\State $r \leftarrow \text{outlier\_reject}(r, \text{med\_k}=5, \text{tol}=30)$
+\State $r \leftarrow \text{interpolate}(r)$ \Comment{Fill gaps}
+\State $r \leftarrow \text{median\_filter}(r, k=9)$
+\State $r \leftarrow \text{gaussian\_blur}(r, \sigma=7)$
+\State $r \leftarrow \text{slope\_clamp}(r, \pm 2\text{ px/col})$ \Comment{Two-pass}
+\State Reconstruct $M$ from refined boundary $r$
+\State \textbf{Return} $M$
+\end{algorithmic}
+\end{algorithm}
+
+\noindent The top-connected filter (line 2) removes isolated sky blobs by keeping only connected components that touch the top 15\% of the image. CLAHE (line 3) is applied only within a dilated sky mask to avoid amplifying noise in terrain regions. The dual-scale Canny edge detection (lines 5--7) captures boundaries at different sharpness levels; searching only within $\pm 10$ rows of the U-Net boundary (line 10) prevents jumping to cloud edges far from the true terrain boundary.
+
 \section{Profile Extraction}
 
-Each column of the sky mask maps to an azimuth angle through the camera intrinsics. The first terrain pixel from the top marks the skyline. The result is interpolated onto a uniform grid matching the database. Profiles with standard deviation below 1.5$^\circ$, maximum elevation below 1.0$^\circ$, or boundary coverage below 50\% are rejected.
+\begin{algorithm}[H]
+\caption{Profile Extraction}
+\label{alg:profile}
+\begin{algorithmic}[1]
+\State \textbf{Input:} binary mask $M$ (H$\times$W), vertical FOV $\phi_y$, bin size $\delta = 0.5°$
+\State \textbf{Output:} elevation profile $\theta[0 \ldots K{-}1]$
+\State $W \leftarrow \text{width}(M)$
+\State Compute horizontal FOV: $\phi_x \leftarrow 2 \arctan\!\big(\tfrac{W}{H} \tan(\phi_y / 2)\big)$
+\State Focal length: $f_x \leftarrow W / (2 \tan(\phi_x / 2))$, \; $f_y \leftarrow H / (2 \tan(\phi_y / 2))$
+\State $(x_c, y_c) \leftarrow (W/2, H/2)$
+\For{each column $c = 0 \ldots W{-}1$}
+    \State Find first terrain pixel $r_c$ from top of $M[:, c]$
+    \State Compute 3D ray: $\mathbf{v} = \big[(c - x_c)/f_x,\; (y_c - r_c)/f_y,\; -1\big]$
+    \State Normalise $\mathbf{v} \leftarrow \mathbf{v} / \|\mathbf{v}\|$
+    \State Azimuth: $\alpha_c \leftarrow \arctan2(v_x, -v_z)$
+    \State Elevation: $\beta_c \leftarrow \arcsin(v_y)$
+\EndFor
+\State Sort by azimuth, interpolate onto uniform grid at $\delta = 0.5°$
+\State \textbf{Return} $\theta$
+\end{algorithmic}
+\end{algorithm}
+
+\noindent The column-to-azimuth mapping (line 8) uses the pinhole camera model. Each column index $c$ maps to a unique azimuth through the focal length $f_x$. The elevation angle $\beta_c$ is the angle between the ray and the horizontal plane. The final interpolation (line 12) places the irregularly-spaced (azimuth, elevation) pairs onto a uniform $0.5°$ grid matching the database format.
+
+\section{Multi-Crop Profile Fusion}
+
+When multiple photographs are available from the same location (taken at different headings), their individual profiles are fused into a single wide-FOV profile.
+
+\begin{algorithm}[H]
+\caption{Multi-Crop Profile Fusion}
+\label{alg:fusion}
+\begin{algorithmic}[1]
+\State \textbf{Input:} crops $\{(h_j, \theta_j, \phi_j)\}_{j=1}^{C}$, bin size $\delta = 0.5°$
+\State \textbf{Output:} fused profile $\Theta[0 \ldots N{-}1]$, coverage $\Phi$ (degrees)
+\State $N \leftarrow 360 / \delta$ \Comment{720 bins}
+\State $\Theta \leftarrow \text{NaN} \times \mathbb{R}^N$
+\For{each crop $j = 1 \ldots C$}
+    \State $m \leftarrow \text{length}(\theta_j)$
+    \State $c_{\text{bin}} \leftarrow \text{round}(h_j / \delta)$ \Comment{Centre bin for this heading}
+    \For{each bin $i = 0 \ldots m{-}1$}
+        \State $b \leftarrow (c_{\text{bin}} - m/2 + i) \bmod N$
+        \If{$\theta_j[i]$ is valid and $\Theta[b]$ is NaN}
+            \State $\Theta[b] \leftarrow \theta_j[i]$
+        \EndIf
+    \EndFor
+\EndFor
+\State $\Phi \leftarrow |\{b : \Theta[b] \neq \text{NaN}\}| \cdot \delta$
+\State Interpolate NaN gaps linearly
+\State \textbf{Return} $\Theta$, $\Phi$
+\end{algorithmic}
+\end{algorithm}
+
+\noindent Each crop's profile is placed into the correct azimuth bins based on its heading (line 7). Overlapping bins keep the first valid value (line 9). Gaps between crops are linearly interpolated (line 14). A minimum coverage of 180$^\circ$ is required for reliable matching.
 
 \section{Matching}
 
@@ -90,13 +205,46 @@ Each top-$k$ candidate expands to 12 neighbours at full resolution. Top 30 advan
 \end{algorithmic}
 \end{algorithm}
 
-\section{Mobile Client}
+\subsection{Three-Scorer RRF Fusion}
 
-Kivy app with modules for camera overlay, sensor reading, segmentation, profile extraction, and matching. Plyer handles accelerometer and magnetometer.
+Multiple scorers operate at different terrain scales. Their ranked lists are fused using Reciprocal-Rank Fusion.
 
-\subsection{Multi-Crop Fusion}
+\begin{algorithm}[H]
+\caption{Three-Scorer RRF Fusion}
+\label{alg:rrf}
+\begin{algorithmic}[1]
+\State \textbf{Input:} query $q$, database $D$, scorers $\{S_1, S_2, S_3\}$, $k = 60$
+\State \textbf{Output:} best location $(lat^*, lon^*)$, confidence
+\For{each scorer $S_i$}
+    \State Rank all DB viewpoints by $S_i(q, v)$ descending
+    \State $R_i[v] \leftarrow \text{rank of } v \text{ in scorer } S_i$
+\EndFor
+\For{each viewpoint $v$ in $D$}
+    \State $\text{score}(v) \leftarrow \sum_{i=1}^{3} \frac{1}{k + R_i[v]}$
+\EndFor
+\State $v^* \leftarrow \arg\max_v \text{score}(v)$
+\State \textbf{Return} $(lat_{v^*}, lon_{v^*})$, $\text{score}(v^*)$
+\end{algorithmic}
+\end{algorithm}
 
-Two or three photos at different headings are independently segmented, converted to profiles, and stitched into one wider horizon.
+\noindent Because RRF uses ranks rather than raw scores, scorers that produce numbers on different scales (e.g., correlation between 0 and 1, and bandpass energy in arbitrary units) can be combined without normalisation.
+
+\section{Mobile Client (Prototype)}
+
+Kivy was chosen because it compiles the same Python codebase to Android (via buildozer) without rewriting in Java or Kotlin. A small prototype was built to verify that the entire pipeline runs on a phone: the ONNX model loads and segments images, the database fits in memory, and the matching math completes within reasonable time. It is not a production application --- just proof that the approach is viable on Android hardware.
+
+Plyer handles accelerometer and magnetometer access. The sensors provide pitch and heading readings that are used to correct camera tilt before profile extraction --- the matching algorithm assumes a level camera, so sensor data removes one source of error. Two or three photos at different headings are independently segmented, converted to profiles, and stitched into one wider horizon before matching (as described in Section~\ref{sec:extraction}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.45\textwidth]{src/images/mobile.png}
+\caption{Mobile prototype: sensor overlay guiding the user to hold the phone level. The green indicator shows the phone is within acceptable tilt.}
+\label{fig:mobile_prototype}
+\end{figure}
+
+\subsection{Streamlit Dashboard}
+
+A Streamlit-based dashboard was also developed for demonstration and testing. It accepts a photograph, runs the full segmentation and matching pipeline, and displays the results. The dashboard shows the extracted skyline overlaid against the best-matching database profile, a map with the estimated location marked, and the distance and direction to the nearest known landmark. A multi-crop demo mode processes 3 Google Street View crops simultaneously, fusing their profiles before matching. A screenshot of the dashboard is shown in Chapter~\ref{chap:results} (Figure~\ref{fig:dashboard_result}).
 
 \subsection{Resources}
 

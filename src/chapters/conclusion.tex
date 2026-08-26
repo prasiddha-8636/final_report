@@ -3,7 +3,7 @@
 
 \section{Summary}
 
-A camera-based location estimator for mountain terrain. Given one or more photographs, the system segments the sky, extracts a horizon profile, and matches it against a precomputed database. No satellite signal needed.
+This project built a camera-based location estimator for mountain terrain. The system has three main components: a \Gls{unet} segmentation network that separates sky from terrain in photographs, a precomputed database of 1.34 million horizon profiles generated from a 30\,m \Gls{dem}, and a three-stage matching pipeline that uses multiple scorers fused by Reciprocal-Rank Fusion. A small mobile prototype verified that the entire pipeline runs on Android hardware without network connectivity.
 
 \section{Key Results}
 
@@ -11,21 +11,23 @@ A camera-based location estimator for mountain terrain. Given one or more photog
     \item \textbf{Synthetic:} 86.4\% of answered queries within 500\,m, median 135\,m.
     \item \textbf{Real-photo:} with consensus filtering, 85.7\% within 1\,km, median $\sim$40\,m.
     \item \textbf{Robustness:} stable up to 1.0$^\circ$ profile noise.
-    \item \textbf{On-device:} 41\,MB model, 10.5\,MB database subset, $\sim$138\,MB peak RAM. No network needed.
+    \item \textbf{On-device:} 41\,MB model, 10.5\,MB database subset, $\sim$138\,MB peak \Gls{ram}.
 \end{itemize}
 
 \section{Limitations}
 
 \begin{itemize}
-    \item \textbf{DEM resolution:} At 30\,m, nearby viewpoints share similar profiles. Finer DEMs would reduce imposter matches.
-    \item \textbf{Segmentation quality:} Real photos with haze, fog, or unusual lighting produce noisier masks. The consensus gate handles this by abstaining.
-    \item \textbf{Narrow FOV:} Single-crop photos give ambiguous profiles. Multi-crop fusion (2--3 photos) substantially improves accuracy.
+    \item \textbf{\Gls{dem} resolution:} At 30\,m, nearby viewpoints share similar profiles. Finer \Gls{dem}s would reduce imposter matches.
+    \item \textbf{Segmentation quality:} Real photos with haze, fog, or unusual lighting produce noisier masks. The consensus gate handles this by avoiding such photos.
+    \item \textbf{Multiple photos requirement:} A single cropped photo captures only 60$^\circ$--80$^\circ$ of the horizon. Several viewpoints produce similar partial profiles, leading to ambiguous matches. The system compensates by allowing two or three overlapping photos at different headings, which are stitched into a wider profile before matching.
+    \item \textbf{Study area scope:} Evaluation was limited to the Khumbu region. Performance in other mountain ranges with different terrain geometry has not been tested.
 \end{itemize}
 
 \section{Future Work}
 
 \begin{itemize}
-    \item \textbf{Finer DEMs:} Higher-resolution elevation data would reduce profile ambiguity.
-    \item \textbf{Field testing:} Real hiking conditions with phone cameras and varying weather.
-    \item \textbf{Other regions:} Test on different mountain ranges to check generalisation.
+    \item \textbf{Finer \Gls{dem}s:} Higher-resolution elevation data would reduce profile ambiguity and improve matching accuracy.
+    \item \textbf{Field testing:} Real hiking conditions with phone cameras and varying weather would validate the system under operational constraints.
+    \item \textbf{Other regions:} Testing on different mountain ranges would check whether the approach generalises beyond the Khumbu valley.
+    \item \textbf{Improved segmentation:} Training on larger, more diverse mountain datasets could reduce the segmentation error that currently limits real-photo accuracy.
 \end{itemize}
