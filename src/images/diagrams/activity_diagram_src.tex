@@ -1,13 +1,12 @@
 \documentclass[border=12pt]{standalone}
 
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
 
 \begin{document}
 
 \begin{tikzpicture}[
     node distance=0.55cm,
-    
     activity/.style={
         rectangle,
         draw=black,
@@ -18,7 +17,6 @@
         font=\small,
         rounded corners=8pt
     },
-    
     decision/.style={
         diamond,
         draw=black,
@@ -30,7 +28,6 @@
         inner sep=1pt,
         aspect=2
     },
-    
     startend/.style={
         circle,
         draw=black,
@@ -38,12 +35,10 @@
         minimum size=0.45cm,
         fill=black
     },
-    
     arr/.style={
         -{Stealth[length=2.2mm]},
         thick
     },
-    
     note/.style={
         font=\footnotesize,
         text=gray,
@@ -51,26 +46,17 @@
     }
 ]
 
-% =========================================================
 % Start
-% =========================================================
-
 \node[startend] (start) {};
 
-% =========================================================
 % User actions
-% =========================================================
-
 \node[activity, below=0.65cm of start] (capture)
     {Capture photos};
 
 \node[activity, below=of capture] (level)
     {Level camera\\(sensors)};
 
-% =========================================================
 % Profile extraction
-% =========================================================
-
 \node[activity, below=0.75cm of level] (seg)
     {Segment sky (U-Net)};
 
@@ -80,21 +66,15 @@
 \node[activity, below=of refine] (extract)
     {Extract skyline profile};
 
-% =========================================================
 % Validation
-% =========================================================
-
 \node[decision, below=0.8cm of extract] (valid)
     {Valid?};
 
-\node[note, right=0.5cm of valid]
+\node[note, right=0.5cm of valid] (criteria)
     {Coverage $>180^\circ$\\
      Std. deviation $>1.5^\circ$};
 
-% =========================================================
 % Fusion and matching
-% =========================================================
-
 \node[activity, below=0.9cm of valid] (fuse)
     {Fuse multi-crop profiles};
 
@@ -110,58 +90,40 @@
 \node[activity, below=of dtw] (rrf)
     {RRF fusion};
 
-% =========================================================
 % Output
-% =========================================================
-
 \node[activity, below=0.75cm of rrf] (result)
     {Location estimate};
 
 \node[startend, below=0.65cm of result] (end) {};
 
-% =========================================================
 % Main flow
-% =========================================================
-
 \draw[arr] (start) -- (capture);
 \draw[arr] (capture) -- (level);
-
 \draw[arr] (level) -- (seg);
 \draw[arr] (seg) -- (refine);
 \draw[arr] (refine) -- (extract);
-
 \draw[arr] (extract) -- (valid);
 
-% =========================================================
-% Decision: YES
-% =========================================================
-
+% Yes branch
 \draw[arr]
     (valid.south)
     -- node[right, font=\footnotesize] {Yes}
     (fuse.north);
 
-% =========================================================
-% Decision: NO / RETRY
-% =========================================================
-
-\coordinate (retry) at ($(valid.west)+(-1.4,0)$);
+% No branch / retry
+\coordinate (retry) at ($(valid.west)+(-1.4cm,0)$);
 
 \draw[arr]
     (valid.west)
-    -- node[above, font=\footnotesize, pos=0.45] {No}
+    -- node[above, font=\footnotesize, pos=0.5] {No}
     (retry)
     |- (capture.west);
 
-% =========================================================
 % Remaining flow
-% =========================================================
-
 \draw[arr] (fuse) -- (coarse);
 \draw[arr] (coarse) -- (refine2);
 \draw[arr] (refine2) -- (dtw);
 \draw[arr] (dtw) -- (rrf);
-
 \draw[arr] (rrf) -- (result);
 \draw[arr] (result) -- (end);
 
